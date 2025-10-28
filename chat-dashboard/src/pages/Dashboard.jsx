@@ -17,7 +17,6 @@ export default function Dashboard() {
   const [onlineUsers, setOnlineUsers] = useState(new Set());
   const [loading, setLoading] = useState(true);
 
-  // Check auth and load data
   useEffect(() => {
     const token = localStorage.getItem("token");
     const storedUsername = localStorage.getItem("username");
@@ -29,7 +28,6 @@ export default function Dashboard() {
 
     setUsername(storedUsername);
 
-    // Fetch users
     const fetchUsers = async () => {
       try {
         const res = await axios.get("http://localhost:5000/api/users", {
@@ -37,7 +35,6 @@ export default function Dashboard() {
         });
         setUsers(res.data);
 
-        // Get current user ID from token
         const payload = JSON.parse(atob(token.split('.')[1]));
         setCurrentUserId(payload.id);
       } catch (err) {
@@ -54,7 +51,6 @@ export default function Dashboard() {
     fetchUsers();
   }, [navigate]);
 
-  // Listen for online/offline events
   useEffect(() => {
     if (!socket) return;
 
@@ -76,7 +72,6 @@ export default function Dashboard() {
     };
   }, [socket]);
 
-  // Get or create conversation when user selected
   useEffect(() => {
     if (!selectedUser) return;
 
@@ -106,70 +101,103 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-gray-900 text-white">
-        <div className="text-xl">Loading...</div>
+      <div className="flex items-center justify-center h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4 mx-auto"></div>
+          <p className="text-gray-300 text-lg">Loading...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-screen bg-gray-900 text-white">
-      {/* Header */}
-      <header className="bg-gray-800 shadow-lg border-b border-gray-700">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-blue-400">💬 Chat System</h1>
-          <div className="flex items-center gap-4">
-            <span className="text-gray-300">Welcome, <strong>{username}</strong>!</span>
-            <button
-              onClick={handleLogout}
-              className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-md font-medium transition"
-            >
-              Logout
-            </button>
-          </div>
-        </div>
-      </header>
+    <div className="flex h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+      {/* Sidebar */}
+      <Sidebar
+        users={users}
+        selectedUserId={selectedUser?._id}
+        onSelectUser={setSelectedUser}
+        onlineUsers={onlineUsers}
+        currentUsername={username}
+        onLogout={handleLogout}
+      />
 
-      {/* Main Content */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar */}
-        <Sidebar
-          users={users}
-          selectedUserId={selectedUser?._id}
-          onSelectUser={setSelectedUser}
-          onlineUsers={onlineUsers}
-        />
+      {/* Chat Area */}
+      <div className="flex-1 flex flex-col">
+        {selectedUser ? (
+          <>
+            {/* Chat Header */}
+            <div className="bg-gray-800 bg-opacity-80 border-b border-gray-700 border-opacity-50 px-6 py-4 shadow-lg">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  {/* Avatar */}
+                  <div className="relative">
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg shadow-lg">
+                      {selectedUser.username.charAt(0).toUpperCase()}
+                    </div>
+                    {onlineUsers.has(selectedUser._id) && (
+                      <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 rounded-full border-2 border-gray-800"></div>
+                    )}
+                  </div>
+                  
+                  <div>
+                    <h2 className="text-white font-semibold text-lg">{selectedUser.username}</h2>
+                    <p className="text-sm text-gray-400 flex items-center gap-1">
+                      {onlineUsers.has(selectedUser._id) ? (
+                        <>
+                          <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                          Online
+                        </>
+                      ) : (
+                        <>
+                          <span className="w-2 h-2 bg-gray-500 rounded-full"></span>
+                          Offline
+                        </>
+                      )}
+                    </p>
+                  </div>
+                </div>
 
-        {/* Chat Area */}
-        <div className="flex flex-col flex-1 bg-gray-800">
-          {selectedUser ? (
-            <>
-              {/* Chat Header */}
-              <div className="p-4 bg-gray-900 border-b border-gray-700">
-                <h2 className="text-lg font-semibold">{selectedUser.username}</h2>
-                <p className="text-sm text-gray-400">
-                  {onlineUsers.has(selectedUser._id) ? "🟢 Online" : "⚫ Offline"}
-                </p>
-              </div>
-
-              {/* Messages */}
-              <ChatWindow 
-                conversationId={conversationId} 
-                currentUserId={currentUserId}
-              />
-
-              {/* Input */}
-              <MessageInput conversationId={conversationId} />
-            </>
-          ) : (
-            <div className="flex-1 flex items-center justify-center text-gray-400">
-              <div className="text-center">
-                <div className="text-6xl mb-4">💬</div>
-                <p className="text-xl">Select a user to start chatting</p>
+                {/* Header Actions */}
+                <div className="flex items-center gap-2">
+                  <button className="p-2 hover:bg-gray-700 hover:bg-opacity-50 rounded-lg transition-colors text-gray-400 hover:text-white">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                  </button>
+                  <button className="p-2 hover:bg-gray-700 hover:bg-opacity-50 rounded-lg transition-colors text-gray-400 hover:text-white">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                    </svg>
+                  </button>
+                </div>
               </div>
             </div>
-          )}
-        </div>
+
+            {/* Messages */}
+            <ChatWindow 
+              conversationId={conversationId} 
+              currentUserId={currentUserId}
+            />
+
+            {/* Input */}
+            <MessageInput conversationId={conversationId} />
+          </>
+        ) : (
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-center">
+              <div className="w-32 h-32 mx-auto mb-6 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 bg-opacity-20 flex items-center justify-center">
+                <svg className="w-16 h-16 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+              </div>
+              <h3 className="text-2xl font-semibold text-white mb-2">Welcome to Chat System</h3>
+              <p className="text-gray-400 max-w-md">
+                Select a conversation from the sidebar to start messaging
+              </p>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -9,11 +9,19 @@ export function SocketProvider({ children }) {
   const [connected, setConnected] = useState(false);
 
   useEffect(() => {
-    if (!token) return;
+    if (!token) {
+      console.log("⚠️ No token found, skipping socket connection");
+      return;
+    }
+
+    console.log("🔌 Attempting socket connection...");
 
     const socket = io("http://localhost:5000", {
       auth: { token },
-      transports: ["websocket"],
+      transports: ["websocket", "polling"], // ✅ Try both transports
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionAttempts: 5
     });
 
     socketRef.current = socket;
@@ -23,16 +31,20 @@ export function SocketProvider({ children }) {
       setConnected(true);
     });
 
-    socket.on("disconnect", () => {
-      console.log("❌ Socket disconnected");
+    socket.on("disconnect", (reason) => {
+      console.log("❌ Socket disconnected:", reason);
       setConnected(false);
     });
 
     socket.on("connect_error", (err) => {
       console.error("⚠️ Socket connection error:", err.message);
+      setConnected(false);
     });
 
-    return () => socket.disconnect();
+    return () => {
+      console.log("🔌 Disconnecting socket...");
+      socket.disconnect();
+    };
   }, [token]);
 
   return (
