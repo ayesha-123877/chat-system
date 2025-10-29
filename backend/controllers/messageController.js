@@ -67,3 +67,39 @@ export const getUserConversations = async (req, res) => {
     res.status(500).json({ message: "Failed to fetch conversations", error: err.message });
   }
 };
+
+// ✅ NEW: Clear chat (delete all messages in conversation)
+export const clearChat = async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+    const currentUserId = req.user.id;
+
+    // Verify user is part of conversation
+    const conversation = await Conversation.findById(conversationId);
+    
+    if (!conversation) {
+      return res.status(404).json({ message: "Conversation not found" });
+    }
+
+    if (!conversation.participants.includes(currentUserId)) {
+      return res.status(403).json({ message: "Unauthorized" });
+    }
+
+    // Delete all messages in this conversation
+    const result = await Message.deleteMany({ conversationId });
+
+    // Update conversation
+    await Conversation.findByIdAndUpdate(conversationId, {
+      lastMessage: "",
+      lastMessageTime: Date.now()
+    });
+
+    res.json({ 
+      message: "Chat cleared successfully", 
+      deletedCount: result.deletedCount 
+    });
+  } catch (err) {
+    console.error("Clear chat error:", err);
+    res.status(500).json({ message: "Failed to clear chat", error: err.message });
+  }
+};

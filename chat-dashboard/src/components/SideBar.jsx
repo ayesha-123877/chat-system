@@ -17,6 +17,9 @@ export default function Sidebar({
     user.email.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  // Count online users from filtered list
+  const onlineCount = filteredUsers.filter(user => onlineUsers.has(user._id)).length;
+
   return (
     <div className="w-96 bg-gray-800 border-r border-gray-700 flex flex-col">
       {/* Sidebar Header */}
@@ -43,7 +46,7 @@ export default function Sidebar({
           </button>
         </div>
 
-        {/* Search Bar - NOW FUNCTIONAL */}
+        {/* Search Bar - WORKING */}
         <div className="relative">
           <input
             type="text"
@@ -60,7 +63,7 @@ export default function Sidebar({
           {searchQuery && (
             <button
               onClick={() => setSearchQuery("")}
-              className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-200"
+              className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-200 transition-colors"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -70,11 +73,11 @@ export default function Sidebar({
         </div>
       </div>
 
-      {/* Users Count */}
+      {/* Users Count - FIXED */}
       <div className="px-4 py-2 bg-gray-900 bg-opacity-30">
         <p className="text-xs text-gray-400 font-medium">
           {filteredUsers.length} {filteredUsers.length === 1 ? "contact" : "contacts"}
-          {searchQuery && ` found`} • {onlineUsers.size} online
+          {searchQuery && ` found`} • {onlineCount} online
         </p>
       </div>
 

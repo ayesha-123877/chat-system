@@ -10,7 +10,7 @@ export function SocketProvider({ children }) {
 
   useEffect(() => {
     if (!token) {
-      console.log("⚠️ No token found, skipping socket connection");
+      console.log(" No token found, skipping socket connection");
       return;
     }
 
@@ -18,31 +18,43 @@ export function SocketProvider({ children }) {
 
     const socket = io("http://localhost:5000", {
       auth: { token },
-      transports: ["websocket", "polling"], // ✅ Try both transports
+      transports: ["websocket", "polling"],
       reconnection: true,
       reconnectionDelay: 1000,
-      reconnectionAttempts: 5
+      reconnectionAttempts: 5,
+      timeout: 10000
     });
 
     socketRef.current = socket;
 
     socket.on("connect", () => {
-      console.log("✅ Socket connected:", socket.id);
+      console.log(" Socket connected:", socket.id);
       setConnected(true);
     });
 
     socket.on("disconnect", (reason) => {
-      console.log("❌ Socket disconnected:", reason);
+      console.log(" Socket disconnected:", reason);
       setConnected(false);
     });
 
     socket.on("connect_error", (err) => {
-      console.error("⚠️ Socket connection error:", err.message);
+      console.error(" Socket connection error:", err.message);
       setConnected(false);
+    });
+
+    //  CRITICAL: Listen for online/offline events
+    socket.on("userOnline", (data) => {
+      console.log("👤 User came online:", data);
+    });
+
+    socket.on("userOffline", (data) => {
+      console.log("👤 User went offline:", data);
     });
 
     return () => {
       console.log("🔌 Disconnecting socket...");
+      socket.off("userOnline");
+      socket.off("userOffline");
       socket.disconnect();
     };
   }, [token]);
