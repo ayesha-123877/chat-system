@@ -12,7 +12,7 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // ✅ Check if already logged in
+  //  Check if already logged in
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (token) {
@@ -36,7 +36,7 @@ export default function Register() {
 
       alert("Registration successful! Please login.");
       
-      // ✅ Navigate to login page
+      //  Navigate to login page
       navigate("/login", { replace: true });
       
     } catch (err) {
@@ -51,7 +51,7 @@ export default function Register() {
     <div className="flex items-center justify-center h-screen bg-gray-900 text-white">
       <div className="bg-gray-800 p-8 rounded-2xl w-96 shadow-lg">
         <h1 className="text-3xl font-semibold mb-6 text-center text-blue-400">
-          Chat-System 🚀
+          Chat-System 
         </h1>
 
         {error && (

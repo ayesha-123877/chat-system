@@ -15,7 +15,7 @@ const messageSchema = new mongoose.Schema({
     type: String,
     default: "" 
   },
-  // ✅ NEW: Attachments field
+  //  NEW: Attachments field
   attachments: [{
     url: { type: String, required: true },
     filename: { type: String, required: true },

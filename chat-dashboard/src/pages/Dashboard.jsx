@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSocket } from "../context/SocketContext";
 import Sidebar from "../components/Sidebar";
@@ -19,6 +19,16 @@ export default function Dashboard() {
   const [showChatMenu, setShowChatMenu] = useState(false);
   const [searchInChat, setSearchInChat] = useState("");
   const [showSearchBox, setShowSearchBox] = useState(false);
+  
+  //  Unread counts
+  const [unreadCounts, setUnreadCounts] = useState({});
+  
+  //  Use ref to track selected user in socket listener
+  const selectedUserRef = useRef(null);
+
+  useEffect(() => {
+    selectedUserRef.current = selectedUser;
+  }, [selectedUser]);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -40,6 +50,7 @@ export default function Dashboard() {
 
         const payload = JSON.parse(atob(token.split('.')[1]));
         setCurrentUserId(payload.id);
+        console.log(" Current User ID:", payload.id);
       } catch (err) {
         console.error("Error fetching users:", err);
         if (err.response?.status === 401) {
@@ -54,40 +65,26 @@ export default function Dashboard() {
     fetchUsers();
   }, [navigate]);
 
-  // ✅ FIXED: Better online status management
+  // Online status management
   useEffect(() => {
     if (!socket) return;
 
-    // Listen for initial online users list
     socket.on("onlineUsersList", ({ onlineUsers: onlineList }) => {
-      console.log("📋 Initial online users:", onlineList);
       setOnlineUsers(new Set(onlineList));
     });
 
-    // Listen for user coming online
     socket.on("userOnline", ({ userId, onlineUsers: onlineList }) => {
-      console.log("👤 User came online:", userId);
       if (onlineList) {
-        // Server sent full list
         setOnlineUsers(new Set(onlineList));
       } else {
-        // Add single user
-        setOnlineUsers((prev) => {
-          const newSet = new Set(prev);
-          newSet.add(userId);
-          return newSet;
-        });
+        setOnlineUsers((prev) => new Set(prev).add(userId));
       }
     });
 
-    // Listen for user going offline
     socket.on("userOffline", ({ userId, onlineUsers: onlineList }) => {
-      console.log("👤 User went offline:", userId);
       if (onlineList) {
-        // Server sent full list
         setOnlineUsers(new Set(onlineList));
       } else {
-        // Remove single user
         setOnlineUsers((prev) => {
           const newSet = new Set(prev);
           newSet.delete(userId);
@@ -103,6 +100,60 @@ export default function Dashboard() {
     };
   }, [socket]);
 
+  //  FIXED: Listen for incoming messages with proper checks
+  useEffect(() => {
+    if (!socket || !currentUserId) {
+      console.log(" Socket or currentUserId not ready");
+      return;
+    }
+
+    console.log(" Setting up message listener for user:", currentUserId);
+
+    const handleNewMessage = (msg) => {
+      console.log(" Message received:", msg);
+      console.log(" From:", msg.sender._id || msg.sender);
+      console.log(" Current user:", currentUserId);
+      console.log(" Selected user:", selectedUserRef.current?._id);
+
+      // Get sender ID
+      const senderId = msg.sender._id || msg.sender;
+
+      // Check if message is from someone else
+      if (senderId === currentUserId) {
+        console.log(" Message from self, ignoring");
+        return;
+      }
+
+      console.log(" Message from someone else!");
+
+      // Check if chat is currently open
+      if (selectedUserRef.current?._id === senderId) {
+        console.log(" Chat is open, not incrementing unread");
+        return;
+      }
+
+      console.log(" Incrementing unread count for user:", senderId);
+
+      // Increment unread count
+      setUnreadCounts((prev) => {
+        const newCount = (prev[senderId] || 0) + 1;
+        console.log(" Unread count updated:", { userId: senderId, count: newCount });
+        return {
+          ...prev,
+          [senderId]: newCount
+        };
+      });
+    };
+
+    socket.on("receiveMessage", handleNewMessage);
+
+    return () => {
+      console.log(" Removing message listener");
+      socket.off("receiveMessage", handleNewMessage);
+    };
+  }, [socket, currentUserId]);
+
+  // Get or create conversation
   useEffect(() => {
     if (!selectedUser) return;
 
@@ -115,6 +166,13 @@ export default function Dashboard() {
           { headers: { Authorization: `Bearer ${token}` } }
         );
         setConversationId(res.data._id);
+
+        //  Clear unread count when opening chat
+        console.log("🧹 Clearing unread count for:", selectedUser._id);
+        setUnreadCounts((prev) => ({
+          ...prev,
+          [selectedUser._id]: 0
+        }));
       } catch (err) {
         console.error("Get conversation error:", err);
       }
@@ -141,9 +199,14 @@ export default function Dashboard() {
       window.location.reload();
     } catch (err) {
       console.error("Clear chat error:", err);
-      alert("Could not clear chat. This feature needs backend support.");
+      alert("Could not clear chat.");
     }
   };
+
+  //  Debug: Log unread counts whenever they change
+  useEffect(() => {
+    console.log("Current unread counts:", unreadCounts);
+  }, [unreadCounts]);
 
   if (loading) {
     return (
@@ -165,6 +228,7 @@ export default function Dashboard() {
         onlineUsers={onlineUsers}
         currentUsername={username}
         onLogout={handleLogout}
+        unreadCounts={unreadCounts}
       />
 
       <div className="flex-1 flex flex-col">
@@ -204,7 +268,6 @@ export default function Dashboard() {
                   <button 
                     onClick={() => setShowSearchBox(!showSearchBox)}
                     className="p-2 hover:bg-gray-700 hover:bg-opacity-50 rounded-lg transition-colors text-gray-400 hover:text-white"
-                    title="Search in conversation"
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -215,7 +278,6 @@ export default function Dashboard() {
                     <button 
                       onClick={() => setShowChatMenu(!showChatMenu)}
                       className="p-2 hover:bg-gray-700 hover:bg-opacity-50 rounded-lg transition-colors text-gray-400 hover:text-white"
-                      title="More options"
                     >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
@@ -232,7 +294,7 @@ export default function Dashboard() {
                         <div className="absolute right-0 mt-2 w-52 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-20 overflow-hidden">
                           <button 
                             onClick={() => {
-                              alert(`👤 User Profile\n\nName: ${selectedUser.username}\nEmail: ${selectedUser.email}\nStatus: ${onlineUsers.has(selectedUser._id) ? '🟢 Online' : '⚫ Offline'}`);
+                              alert(` ${selectedUser.username}\n📧 ${selectedUser.email}\n${onlineUsers.has(selectedUser._id) ? '🟢 Online' : '⚫ Offline'}`);
                               setShowChatMenu(false);
                             }}
                             className="w-full px-4 py-3 text-left text-gray-200 hover:bg-gray-700 transition-colors flex items-center gap-3 text-sm"
@@ -245,35 +307,7 @@ export default function Dashboard() {
                           
                           <button 
                             onClick={() => {
-                              alert(`🔕 Notifications muted for ${selectedUser.username}`);
-                              setShowChatMenu(false);
-                            }}
-                            className="w-full px-4 py-3 text-left text-gray-200 hover:bg-gray-700 transition-colors flex items-center gap-3 text-sm"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
-                            </svg>
-                            Mute Notifications
-                          </button>
-                          
-                          <button 
-                            onClick={() => {
-                              if (confirm(`🚫 Block ${selectedUser.username}?`)) {
-                                alert("User blocked!");
-                              }
-                              setShowChatMenu(false);
-                            }}
-                            className="w-full px-4 py-3 text-left text-yellow-400 hover:bg-gray-700 transition-colors flex items-center gap-3 text-sm border-t border-gray-700"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-                            </svg>
-                            Block User
-                          </button>
-                          
-                          <button 
-                            onClick={() => {
-                              if (confirm(`🗑️ Clear all messages with ${selectedUser.username}?`)) {
+                              if (confirm(`🗑️ Clear chat with ${selectedUser.username}?`)) {
                                 handleClearChat();
                               }
                               setShowChatMenu(false);
@@ -336,7 +370,7 @@ export default function Dashboard() {
               </div>
               <h3 className="text-2xl font-semibold text-white mb-2">Welcome to Chat System</h3>
               <p className="text-gray-400 max-w-md">
-                Select a conversation from the sidebar to start messaging
+                Select a conversation to start messaging
               </p>
             </div>
           </div>

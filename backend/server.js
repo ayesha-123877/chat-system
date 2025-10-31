@@ -9,8 +9,6 @@ import { fileURLToPath } from "url";
 
 // config imports
 import connectDB from "./config/db.js";
-import { connectRedis } from "./config/redis.js";
-import { setUserOnline, setUserOffline, getAllOnlineUsers } from "./utils/redisHelper.js";
 
 // routes & socket handlers
 import authRoutes from "./routes/authRoutes.js";
@@ -21,7 +19,6 @@ import { handleMessage } from "./socket/messageHandler.js";
 
 dotenv.config();
 connectDB();
-connectRedis();
 
 const app = express();
 const server = http.createServer(app);
@@ -49,7 +46,13 @@ app.use("/api/upload", uploadRoutes);
 
 app.get("/", (_, res) => res.send(" Chat server active!"));
 
-//  Socket.io auth middleware
+// In-memory online users
+const onlineUsers = new Map();
+
+//  Store user sockets for direct messaging
+const userSockets = new Map(); // userId -> socket
+
+// Socket.io auth middleware
 io.use((socket, next) => {
   const token = socket.handshake.auth?.token;
   if (!token) return next(new Error("auth error: token missing"));
@@ -63,23 +66,21 @@ io.use((socket, next) => {
   }
 });
 
-//  FIXED: Socket connection logic with better online status
-io.on("connection", async (socket) => {
+// Socket connection
+io.on("connection", (socket) => {
   const userId = socket.user.id;
   console.log(` Socket connected: ${socket.id} (User: ${userId})`);
 
-  // Mark user online
-  await setUserOnline(userId, socket.id);
+  // Store user socket
+  userSockets.set(userId, socket);
+  onlineUsers.set(userId, socket.id);
   
-  // Get all online users
-  const onlineUsers = await getAllOnlineUsers();
-  console.log(` Total online users: ${onlineUsers.length}`);
+  const onlineUserIds = Array.from(onlineUsers.keys());
+  console.log(` Total online users: ${onlineUserIds.length}`);
   
-  // Broadcast to ALL clients (including sender)
-  io.emit("userOnline", { userId, onlineUsers });
-
-  // Send current online users to newly connected user
-  socket.emit("onlineUsersList", { onlineUsers });
+  // Broadcast to ALL clients
+  io.emit("userOnline", { userId, onlineUsers: onlineUserIds });
+  socket.emit("onlineUsersList", { onlineUsers: onlineUserIds });
 
   // Join room
   socket.on("joinRoom", (conversationId) => {
@@ -87,8 +88,56 @@ io.on("connection", async (socket) => {
     console.log(` User ${userId} joined room ${conversationId}`);
   });
 
-  // Handle messages
-  handleMessage(io, socket);
+  //  FIXED: Handle messages with global broadcast
+  socket.on("sendMessage", async ({ conversationId, text, attachments = [] }) => {
+    try {
+      const Message = (await import("./models/messageModel.js")).default;
+      const Conversation = (await import("./models/conversationModel.js")).default;
+
+      console.log("📤 Sending message:", { conversationId, text, senderId: userId });
+
+      // Save message
+      const msg = await Message.create({
+        conversationId,
+        sender: userId,
+        text: text || "",
+        attachments: attachments || [],
+      });
+
+      // Populate sender info
+      await msg.populate("sender", "username email");
+
+      // Update conversation
+      const lastMessageText = text || (attachments.length > 0 ? "📎 Attachment" : "");
+      await Conversation.findByIdAndUpdate(conversationId, {
+        lastMessage: lastMessageText,
+        lastMessageTime: Date.now(),
+      });
+
+      // Prepare message data
+      const messageData = {
+        _id: msg._id,
+        conversationId: msg.conversationId,
+        sender: {
+          _id: msg.sender._id,
+          username: msg.sender.username,
+          email: msg.sender.email
+        },
+        text: msg.text,
+        attachments: msg.attachments || [],
+        createdAt: msg.createdAt,
+      };
+
+      console.log(" Broadcasting message to all:", messageData);
+
+      //  CRITICAL: Broadcast to EVERYONE (not just room)
+      io.emit("receiveMessage", messageData);
+      
+    } catch (err) {
+      console.error(" sendMessage error:", err);
+      socket.emit("errorMessage", { message: "Message send failed", error: err.message });
+    }
+  });
 
   // Typing indicator
   socket.on("typing", ({ conversationId, isTyping }) => {
@@ -99,25 +148,30 @@ io.on("connection", async (socket) => {
     });
   });
 
-  //  FIXED: Better disconnect handling
-  socket.on("disconnect", async (reason) => {
-    console.log(` User ${userId} disconnected (Reason: ${reason})`);
-    
-    await setUserOffline(userId);
-    
-    const onlineUsers = await getAllOnlineUsers();
-    
-    // Broadcast to ALL remaining clients
-    io.emit("userOffline", { userId, onlineUsers });
+  // Mark as read
+  socket.on("markAsRead", async ({ conversationId }) => {
+    try {
+      const Conversation = (await import("./models/conversationModel.js")).default;
+      await Conversation.findByIdAndUpdate(conversationId, {
+        unreadCount: 0
+      });
+      console.log(`Marked conversation ${conversationId} as read`);
+    } catch (err) {
+      console.error(" markAsRead error:", err);
+    }
   });
 
-  //  Handle reconnection
-  socket.on("reconnect", async () => {
-    console.log(` User ${userId} reconnected`);
-    await setUserOnline(userId, socket.id);
-    io.emit("userOnline", { userId });
+  // Disconnect
+  socket.on("disconnect", (reason) => {
+    console.log(` User ${userId} disconnected (Reason: ${reason})`);
+    
+    userSockets.delete(userId);
+    onlineUsers.delete(userId);
+    
+    const onlineUserIds = Array.from(onlineUsers.keys());
+    io.emit("userOffline", { userId, onlineUsers: onlineUserIds });
   });
 });
 
 const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+server.listen(PORT, () => console.log(` Server running on port ${PORT}`));

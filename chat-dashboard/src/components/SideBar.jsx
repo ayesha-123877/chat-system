@@ -7,7 +7,8 @@ export default function Sidebar({
   onSelectUser, 
   onlineUsers = new Set(),
   currentUsername = "",
-  onLogout
+  onLogout,
+  unreadCounts = {} //  NEW: Unread counts object
 }) {
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -20,14 +21,25 @@ export default function Sidebar({
   // Count online users from filtered list
   const onlineCount = filteredUsers.filter(user => onlineUsers.has(user._id)).length;
 
+  //  Calculate total unread messages
+  const totalUnread = Object.values(unreadCounts).reduce((sum, count) => sum + count, 0);
+
   return (
     <div className="w-96 bg-gray-800 border-r border-gray-700 flex flex-col">
       {/* Sidebar Header */}
       <div className="bg-gray-900 border-b border-gray-700 p-4">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold shadow-lg">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold shadow-lg relative">
               {currentUsername.charAt(0).toUpperCase()}
+              {/* Total unread badge on avatar */}
+              {totalUnread > 0 && (
+                <div className="absolute -top-1 -right-1 min-w-5 h-5 bg-red-500 rounded-full flex items-center justify-center px-1 border-2 border-gray-900">
+                  <span className="text-white text-xs font-bold">
+                    {totalUnread > 99 ? "99+" : totalUnread}
+                  </span>
+                </div>
+              )}
             </div>
             <div>
               <h2 className="text-white font-semibold text-lg">Chats</h2>
@@ -46,7 +58,7 @@ export default function Sidebar({
           </button>
         </div>
 
-        {/* Search Bar - WORKING */}
+        {/* Search Bar */}
         <div className="relative">
           <input
             type="text"
@@ -59,7 +71,6 @@ export default function Sidebar({
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
           
-          {/* Clear Search Button */}
           {searchQuery && (
             <button
               onClick={() => setSearchQuery("")}
@@ -73,11 +84,17 @@ export default function Sidebar({
         </div>
       </div>
 
-      {/* Users Count - FIXED */}
+      {/* Users Count */}
       <div className="px-4 py-2 bg-gray-900 bg-opacity-30">
         <p className="text-xs text-gray-400 font-medium">
           {filteredUsers.length} {filteredUsers.length === 1 ? "contact" : "contacts"}
           {searchQuery && ` found`} • {onlineCount} online
+          {/*  Show total unread */}
+          {totalUnread > 0 && (
+            <span className="text-red-400 ml-2">
+              • {totalUnread} unread
+            </span>
+          )}
         </p>
       </div>
 
@@ -112,6 +129,7 @@ export default function Sidebar({
                 selected={user._id === selectedUserId}
                 onClick={() => onSelectUser(user)}
                 isOnline={onlineUsers.has(user._id)}
+                unreadCount={unreadCounts[user._id] || 0} //  Pass unread count
               />
             ))}
           </div>

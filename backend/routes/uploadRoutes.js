@@ -6,7 +6,7 @@ import fs from "fs";
 
 const router = express.Router();
 
-// ✅ Upload file endpoint
+//  Upload file endpoint
 router.post("/file", verifyToken, upload.single("file"), async (req, res) => {
   try {
     if (!req.file) {

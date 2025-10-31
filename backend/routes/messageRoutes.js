@@ -3,7 +3,7 @@ import {
   getOrCreateConversation, 
   getMessages, 
   getUserConversations,
-  clearChat  // ✅ NEW
+  clearChat  //  NEW
 } from "../controllers/messageController.js";
 import { verifyToken } from "../middleware/authMiddleware.js";
 
@@ -14,7 +14,7 @@ router.post("/conversation", verifyToken, getOrCreateConversation);
 router.get("/conversation/:conversationId", verifyToken, getMessages);
 router.get("/conversations", verifyToken, getUserConversations);
 
-// ✅ NEW: Clear chat route
+//  NEW: Clear chat route
 router.delete("/conversation/:conversationId", verifyToken, clearChat);
 
 export default router;

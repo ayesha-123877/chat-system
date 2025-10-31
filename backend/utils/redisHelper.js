@@ -36,7 +36,7 @@ export async function getAllOnlineUsers() {
   try {
     const keys = await redisClient.keys("online:*");
     const onlineUserIds = keys.map(key => key.replace("online:", ""));
-    console.log(`📊 Online users: ${onlineUserIds.length}`, onlineUserIds);
+    console.log(` Online users: ${onlineUserIds.length}`, onlineUserIds);
     return onlineUserIds;
   } catch (error) {
     console.error("Redis getAllOnlineUsers error:", error);

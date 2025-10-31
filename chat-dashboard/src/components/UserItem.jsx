@@ -25,7 +25,7 @@ export default function UserItem({ user, selected, onClick, isOnline = false, un
           <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 rounded-full border-2 border-gray-800 animate-pulse"></div>
         )}
 
-        {/* ✅ Unread Badge */}
+        {/*  Unread Badge */}
         {unreadCount > 0 && !selected && (
           <div className="absolute -top-1 -right-1 min-w-5 h-5 bg-red-500 rounded-full flex items-center justify-center px-1 border-2 border-gray-900">
             <span className="text-white text-xs font-bold">
@@ -52,7 +52,7 @@ export default function UserItem({ user, selected, onClick, isOnline = false, un
             {user.email}
           </p>
 
-          {/* ✅ Unread Count Text (alternative display) */}
+          {/*  Unread Count Text (alternative display) */}
           {unreadCount > 0 && !selected && (
             <span className="ml-2 text-xs font-bold text-red-400">
               {unreadCount} new

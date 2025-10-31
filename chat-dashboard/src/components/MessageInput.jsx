@@ -20,7 +20,7 @@ export default function MessageInput({ conversationId }) {
     "🎯", "💯", "✅", "❌", "⚡", "💥", "🌈", "☀️", "🌙", "⛅"
   ];
 
-  // ✅ Typing indicator logic
+  //  Typing indicator logic
   const handleTyping = (value) => {
     setText(value);
 
@@ -84,7 +84,7 @@ export default function MessageInput({ conversationId }) {
     const fileSize = (file.size / 1024 / 1024).toFixed(2);
     
     if (file.size > 10 * 1024 * 1024) {
-      alert("⚠️ File too large! Maximum size is 10MB");
+      alert(" File too large! Maximum size is 10MB");
       e.target.value = "";
       return;
     }
@@ -97,7 +97,7 @@ export default function MessageInput({ conversationId }) {
 
       const token = localStorage.getItem("token");
       
-      console.log("📤 Uploading file:", file.name);
+      console.log(" Uploading file:", file.name);
 
       const response = await axios.post(
         "http://localhost:5000/api/upload/file",
@@ -116,12 +116,12 @@ export default function MessageInput({ conversationId }) {
         }
       );
 
-      console.log("✅ Upload successful:", response.data);
+      console.log(" Upload successful:", response.data);
       sendMessage([response.data]);
 
     } catch (error) {
-      console.error("❌ Upload error:", error);
-      alert(`❌ Upload failed!\n\n${error.response?.data?.message || error.message}`);
+      console.error(" Upload error:", error);
+      alert(` Upload failed!\n\n${error.response?.data?.message || error.message}`);
     } finally {
       setUploading(false);
       e.target.value = "";
@@ -247,7 +247,7 @@ export default function MessageInput({ conversationId }) {
       <div className="max-w-4xl mx-auto mt-2 px-1">
         <p className="text-xs text-gray-500">
           {uploading ? (
-            <span className="text-blue-400">⏳ Uploading file...</span>
+            <span className="text-blue-400"> Uploading file...</span>
           ) : (
             <>
               Press <kbd className="px-1.5 py-0.5 bg-gray-700 bg-opacity-50 rounded text-gray-400 font-mono">Enter</kbd> to send, <kbd className="px-1.5 py-0.5 bg-gray-700 bg-opacity-50 rounded text-gray-400 font-mono">Shift+Enter</kbd> for new line

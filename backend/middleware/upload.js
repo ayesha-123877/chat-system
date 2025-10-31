@@ -8,7 +8,7 @@ if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-// ✅ Configure storage
+//  Configure storage
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     cb(null, uploadDir);
@@ -19,7 +19,7 @@ const storage = multer.diskStorage({
   },
 });
 
-// ✅ File filter
+//  File filter
 const fileFilter = (req, file, cb) => {
   const allowedTypes = /jpeg|jpg|png|gif|pdf|doc|docx|txt|mp4|mov|avi/;
   const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
@@ -32,7 +32,7 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
-// ✅ Multer upload configuration
+// Multer upload configuration
 const upload = multer({
   storage: storage,
   limits: {

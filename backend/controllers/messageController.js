@@ -68,7 +68,7 @@ export const getUserConversations = async (req, res) => {
   }
 };
 
-// ✅ NEW: Clear chat (delete all messages in conversation)
+//  NEW: Clear chat (delete all messages in conversation)
 export const clearChat = async (req, res) => {
   try {
     const { conversationId } = req.params;

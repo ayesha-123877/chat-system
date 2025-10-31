@@ -30,7 +30,7 @@ export default function ChatWindow({ conversationId, currentUserId, searchQuery 
         );
         setMessages(res.data);
 
-        // ✅ Mark as read when opening chat
+        //  Mark as read when opening chat
         if (socket) {
           socket.emit("markAsRead", { conversationId });
         }
@@ -54,7 +54,7 @@ export default function ChatWindow({ conversationId, currentUserId, searchQuery 
       if (msg.conversationId === conversationId) {
         setMessages((prev) => [...prev, msg]);
         
-        // ✅ Mark as read immediately when chat is open
+        //  Mark as read immediately when chat is open
         socket.emit("markAsRead", { conversationId });
       }
     };
@@ -66,7 +66,7 @@ export default function ChatWindow({ conversationId, currentUserId, searchQuery 
     };
   }, [socket, conversationId]);
 
-  // ✅ Listen for typing indicator
+  //  Listen for typing indicator
   useEffect(() => {
     if (!socket || !conversationId) return;
 
@@ -159,7 +159,7 @@ export default function ChatWindow({ conversationId, currentUserId, searchQuery 
             );
           })}
 
-          {/* ✅ Typing Indicator */}
+          {/*  Typing Indicator */}
           {isTyping && (
             <div className="flex mb-4 justify-start">
               <div className="flex items-end gap-2">

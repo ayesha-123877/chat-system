@@ -4,7 +4,7 @@ import Conversation from "../models/conversationModel.js";
 export function handleMessage(io, socket) {
   socket.on("sendMessage", async ({ conversationId, text, attachments = [] }) => {
     try {
-      console.log("📤 Sending message:", { conversationId, text, attachments });
+      console.log(" Sending message:", { conversationId, text, attachments });
 
       // Save message
       const msg = await Message.create({
@@ -24,7 +24,7 @@ export function handleMessage(io, socket) {
         {
           lastMessage: lastMessageText,
           lastMessageTime: Date.now(),
-          // ✅ Increment unread count for receiver
+          //  Increment unread count for receiver
           $inc: { unreadCount: 1 }
         },
         { new: true }
@@ -44,22 +44,22 @@ export function handleMessage(io, socket) {
         createdAt: msg.createdAt,
       };
 
-      console.log("✅ Broadcasting message:", messageData);
+      console.log(" Broadcasting message:", messageData);
       io.to(conversationId).emit("receiveMessage", messageData);
 
-      // ✅ Broadcast unread count update
+      //  Broadcast unread count update
       io.to(conversationId).emit("unreadCountUpdate", {
         conversationId,
         unreadCount: conversation.unreadCount
       });
       
     } catch (err) {
-      console.error("❌ sendMessage error:", err);
+      console.error(" sendMessage error:", err);
       socket.emit("errorMessage", { message: "Message send failed", error: err.message });
     }
   });
 
-  // ✅ Mark messages as read
+  //  Mark messages as read
   socket.on("markAsRead", async ({ conversationId }) => {
     try {
       await Conversation.findByIdAndUpdate(conversationId, {
@@ -71,9 +71,9 @@ export function handleMessage(io, socket) {
         unreadCount: 0
       });
 
-      console.log(`✅ Marked conversation ${conversationId} as read`);
+      console.log(` Marked conversation ${conversationId} as read`);
     } catch (err) {
-      console.error("❌ markAsRead error:", err);
+      console.error(" markAsRead error:", err);
     }
   });
 }

@@ -14,7 +14,7 @@ export function SocketProvider({ children }) {
       return;
     }
 
-    console.log("🔌 Attempting socket connection...");
+    console.log(" Attempting socket connection...");
 
     const socket = io("http://localhost:5000", {
       auth: { token },
@@ -44,15 +44,15 @@ export function SocketProvider({ children }) {
 
     //  CRITICAL: Listen for online/offline events
     socket.on("userOnline", (data) => {
-      console.log("👤 User came online:", data);
+      console.log(" User came online:", data);
     });
 
     socket.on("userOffline", (data) => {
-      console.log("👤 User went offline:", data);
+      console.log(" User went offline:", data);
     });
 
     return () => {
-      console.log("🔌 Disconnecting socket...");
+      console.log(" Disconnecting socket...");
       socket.off("userOnline");
       socket.off("userOffline");
       socket.disconnect();

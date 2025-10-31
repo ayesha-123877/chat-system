@@ -2,7 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
-import { SocketProvider } from "./context/SocketContext"; // ✅ socket import
+import { SocketProvider } from "./context/SocketContext"; //  socket import
 
 // Protected Route Component
 function ProtectedRoute({ children }) {
@@ -18,7 +18,7 @@ function ProtectedRoute({ children }) {
 // Main App Component with DEFAULT EXPORT
 export default function App() {
   return (
-    <SocketProvider> {/* ✅ SocketProvider added */}
+    <SocketProvider> {/*  SocketProvider added */}
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Navigate to="/login" replace />} />
