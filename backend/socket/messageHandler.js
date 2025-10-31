@@ -4,14 +4,14 @@ import Conversation from "../models/conversationModel.js";
 export function handleMessage(io, socket) {
   socket.on("sendMessage", async ({ conversationId, text, attachments = [] }) => {
     try {
-      console.log(" Sending message:", { conversationId, text, attachments });
+      console.log("📤 Sending message:", { conversationId, text, attachments });
 
-      //  FIXED: Save message with attachments
+      // Save message
       const msg = await Message.create({
         conversationId,
         sender: socket.user.id,
-        text: text || "", // Empty if only attachment
-        attachments: attachments || [], // Include attachments
+        text: text || "",
+        attachments: attachments || [],
       });
 
       // Populate sender info
@@ -19,12 +19,18 @@ export function handleMessage(io, socket) {
 
       // Update conversation
       const lastMessageText = text || (attachments.length > 0 ? "📎 Attachment" : "");
-      await Conversation.findByIdAndUpdate(conversationId, {
-        lastMessage: lastMessageText,
-        lastMessageTime: Date.now()
-      });
+      const conversation = await Conversation.findByIdAndUpdate(
+        conversationId,
+        {
+          lastMessage: lastMessageText,
+          lastMessageTime: Date.now(),
+          // ✅ Increment unread count for receiver
+          $inc: { unreadCount: 1 }
+        },
+        { new: true }
+      );
 
-      //  FIXED: Send complete message with attachments
+      // Broadcast message
       const messageData = {
         _id: msg._id,
         conversationId: msg.conversationId,
@@ -34,18 +40,40 @@ export function handleMessage(io, socket) {
           email: msg.sender.email
         },
         text: msg.text,
-        attachments: msg.attachments || [], //  Include attachments in broadcast
+        attachments: msg.attachments || [],
         createdAt: msg.createdAt,
       };
 
-      console.log(" Broadcasting message with attachments:", messageData);
-
-      // Broadcast to all users in room
+      console.log("✅ Broadcasting message:", messageData);
       io.to(conversationId).emit("receiveMessage", messageData);
+
+      // ✅ Broadcast unread count update
+      io.to(conversationId).emit("unreadCountUpdate", {
+        conversationId,
+        unreadCount: conversation.unreadCount
+      });
       
     } catch (err) {
-      console.error(" sendMessage error:", err);
+      console.error("❌ sendMessage error:", err);
       socket.emit("errorMessage", { message: "Message send failed", error: err.message });
+    }
+  });
+
+  // ✅ Mark messages as read
+  socket.on("markAsRead", async ({ conversationId }) => {
+    try {
+      await Conversation.findByIdAndUpdate(conversationId, {
+        unreadCount: 0
+      });
+
+      io.to(conversationId).emit("unreadCountUpdate", {
+        conversationId,
+        unreadCount: 0
+      });
+
+      console.log(`✅ Marked conversation ${conversationId} as read`);
+    } catch (err) {
+      console.error("❌ markAsRead error:", err);
     }
   });
 }

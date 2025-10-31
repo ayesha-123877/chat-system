@@ -16,6 +16,11 @@ const conversationSchema = new mongoose.Schema({
     type: Date, 
     default: Date.now 
   },
+  // ✅ NEW: Unread message count
+  unreadCount: {
+    type: Number,
+    default: 0
+  },
   createdAt: { 
     type: Date, 
     default: Date.now 

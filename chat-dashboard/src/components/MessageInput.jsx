@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useSocket } from "../context/SocketContext";
 import axios from "axios";
 
@@ -9,6 +9,7 @@ export default function MessageInput({ conversationId }) {
   const [uploading, setUploading] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const fileInputRef = useRef(null);
+  const typingTimeoutRef = useRef(null);
 
   const emojis = [
     "😀", "😂", "🤣", "😊", "😍", "🥰", "😎", "🤔", "🤗", "🤩",
@@ -19,10 +20,46 @@ export default function MessageInput({ conversationId }) {
     "🎯", "💯", "✅", "❌", "⚡", "💥", "🌈", "☀️", "🌙", "⛅"
   ];
 
+  // ✅ Typing indicator logic
+  const handleTyping = (value) => {
+    setText(value);
+
+    if (!socket || !conversationId) return;
+
+    // Send typing start
+    socket.emit("typing", { conversationId, isTyping: true });
+
+    // Clear previous timeout
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    // Send typing stop after 2 seconds of inactivity
+    typingTimeoutRef.current = setTimeout(() => {
+      socket.emit("typing", { conversationId, isTyping: false });
+    }, 2000);
+  };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+      // Stop typing when component unmounts
+      if (socket && conversationId) {
+        socket.emit("typing", { conversationId, isTyping: false });
+      }
+    };
+  }, [socket, conversationId]);
+
   const sendMessage = (attachments = []) => {
     if (!socket || (!text.trim() && attachments.length === 0) || sending) return;
 
     setSending(true);
+    
+    // Stop typing indicator
+    socket.emit("typing", { conversationId, isTyping: false });
     
     const messageData = {
       conversationId,
@@ -36,20 +73,18 @@ export default function MessageInput({ conversationId }) {
   };
 
   const handleEmojiClick = (emoji) => {
-    setText(text + emoji);
+    handleTyping(text + emoji);
     setShowEmojiPicker(false);
   };
 
-  //  File upload handler
   const handleFileSelect = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     const fileSize = (file.size / 1024 / 1024).toFixed(2);
     
-    // Check file size
     if (file.size > 10 * 1024 * 1024) {
-      alert(" File too large! Maximum size is 10MB");
+      alert("⚠️ File too large! Maximum size is 10MB");
       e.target.value = "";
       return;
     }
@@ -62,7 +97,7 @@ export default function MessageInput({ conversationId }) {
 
       const token = localStorage.getItem("token");
       
-      console.log(" Uploading file:", file.name);
+      console.log("📤 Uploading file:", file.name);
 
       const response = await axios.post(
         "http://localhost:5000/api/upload/file",
@@ -81,16 +116,12 @@ export default function MessageInput({ conversationId }) {
         }
       );
 
-      console.log(" Upload successful:", response.data);
-
-      // Send message with attachment
+      console.log("✅ Upload successful:", response.data);
       sendMessage([response.data]);
 
-      alert(` File uploaded successfully!\n\nName: ${file.name}\nSize: ${fileSize} MB`);
-
     } catch (error) {
-      console.error(" Upload error:", error);
-      alert(` Upload failed!\n\n${error.response?.data?.message || error.message}`);
+      console.error("❌ Upload error:", error);
+      alert(`❌ Upload failed!\n\n${error.response?.data?.message || error.message}`);
     } finally {
       setUploading(false);
       e.target.value = "";
@@ -136,7 +167,7 @@ export default function MessageInput({ conversationId }) {
         <div className="flex-1 relative">
           <textarea
             value={text}
-            onChange={(e) => setText(e.target.value)}
+            onChange={(e) => handleTyping(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
@@ -167,7 +198,6 @@ export default function MessageInput({ conversationId }) {
               </svg>
             </button>
 
-            {/* Emoji Picker */}
             {showEmojiPicker && (
               <>
                 <div 

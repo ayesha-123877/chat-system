@@ -3,16 +3,20 @@ import { useSocket } from "../context/SocketContext";
 import Message from "./Message";
 import axios from "axios";
 
-export default function ChatWindow({ conversationId, currentUserId }) {
+export default function ChatWindow({ conversationId, currentUserId, searchQuery }) {
   const { socket } = useSocket();
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isTyping, setIsTyping] = useState(false);
+  const [typingUser, setTypingUser] = useState("");
   const messagesEndRef = useRef(null);
+  const typingTimeoutRef = useRef(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
+  // Load messages
   useEffect(() => {
     if (!conversationId) return;
 
@@ -25,6 +29,11 @@ export default function ChatWindow({ conversationId, currentUserId }) {
           { headers: { Authorization: `Bearer ${token}` } }
         );
         setMessages(res.data);
+
+        // ✅ Mark as read when opening chat
+        if (socket) {
+          socket.emit("markAsRead", { conversationId });
+        }
       } catch (err) {
         console.error("Load messages error:", err);
       } finally {
@@ -33,8 +42,9 @@ export default function ChatWindow({ conversationId, currentUserId }) {
     };
 
     loadMessages();
-  }, [conversationId]);
+  }, [conversationId, socket]);
 
+  // Join room and listen for new messages
   useEffect(() => {
     if (!socket || !conversationId) return;
 
@@ -43,6 +53,9 @@ export default function ChatWindow({ conversationId, currentUserId }) {
     const handleReceive = (msg) => {
       if (msg.conversationId === conversationId) {
         setMessages((prev) => [...prev, msg]);
+        
+        // ✅ Mark as read immediately when chat is open
+        socket.emit("markAsRead", { conversationId });
       }
     };
 
@@ -53,9 +66,42 @@ export default function ChatWindow({ conversationId, currentUserId }) {
     };
   }, [socket, conversationId]);
 
+  // ✅ Listen for typing indicator
+  useEffect(() => {
+    if (!socket || !conversationId) return;
+
+    const handleTyping = ({ userId, isTyping: typing }) => {
+      if (userId === currentUserId) return; // Ignore own typing
+
+      setIsTyping(typing);
+
+      // Clear previous timeout
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+
+      // Auto-hide typing indicator after 3 seconds
+      if (typing) {
+        typingTimeoutRef.current = setTimeout(() => {
+          setIsTyping(false);
+        }, 3000);
+      }
+    };
+
+    socket.on("userTyping", handleTyping);
+
+    return () => {
+      socket.off("userTyping", handleTyping);
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+    };
+  }, [socket, conversationId, currentUserId]);
+
+  // Auto scroll
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages, isTyping]);
 
   if (loading) {
     return (
@@ -70,7 +116,7 @@ export default function ChatWindow({ conversationId, currentUserId }) {
 
   return (
     <div className="flex-1 overflow-y-auto bg-gray-900 bg-opacity-80 p-6">
-      {messages.length === 0 ? (
+      {messages.length === 0 && !isTyping ? (
         <div className="flex items-center justify-center h-full">
           <div className="text-center bg-gray-800 bg-opacity-30 rounded-2xl p-8 max-w-md">
             <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-blue-500 bg-opacity-20 flex items-center justify-center">
@@ -112,6 +158,27 @@ export default function ChatWindow({ conversationId, currentUserId }) {
               </React.Fragment>
             );
           })}
+
+          {/* ✅ Typing Indicator */}
+          {isTyping && (
+            <div className="flex mb-4 justify-start">
+              <div className="flex items-end gap-2">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-xs font-semibold flex-shrink-0 shadow-md">
+                  <svg className="w-4 h-4 animate-pulse" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/>
+                  </svg>
+                </div>
+                <div className="bg-gray-800 bg-opacity-80 px-4 py-3 rounded-2xl rounded-bl-sm border border-gray-700 border-opacity-50 shadow-lg">
+                  <div className="flex gap-1">
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }}></div>
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }}></div>
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }}></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div ref={messagesEndRef} />
         </div>
       )}
